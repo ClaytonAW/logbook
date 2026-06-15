@@ -79,14 +79,33 @@
     letter-spacing: 0.01em;
   }
 
-  .clock {
+  .clocks {
+    display: flex;
+    gap: 14px;
+  }
+
+  .clock-zone {
     font-family: var(--font-mono);
-    font-size: 13px;
-    color: var(--text-dim);
     text-align: right;
   }
 
-  .clock .date { color: var(--text-faint); font-size: 11px; }
+  .clock-zone .zone-label {
+    color: var(--text-faint);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .clock-zone .zone-time {
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+
+  @media (max-width: 520px) {
+    .clocks { gap: 8px; }
+    .clock-zone .zone-label { font-size: 9px; }
+    .clock-zone .zone-time { font-size: 11px; }
+  }
 
   /* ===== Main layout ===== */
   main {
@@ -394,6 +413,44 @@
 
   .tag.todo-flag { color: var(--red); border-color: #5a2f29; background: rgba(217,108,95,0.08); }
 
+  /* ===== Link log ===== */
+  .link-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .link-row input[type="url"],
+  .link-row input[type="text"] { flex: 1; }
+  .link-row .link-url { flex: 1.2; }
+  .link-row .link-desc { flex: 1; }
+  .link-row .remove-item {
+    flex-shrink: 0;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+  }
+  .link-preview-list {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .link-preview-list .lp {
+    font-size: 12.5px;
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+  }
+  .link-preview-list .lp a {
+    color: var(--blue);
+    text-decoration: none;
+    word-break: break-all;
+  }
+  .link-preview-list .lp a:hover { text-decoration: underline; }
+  .link-preview-list .lp .lp-desc { color: var(--text-dim); flex-shrink: 0; }
+
+
   /* ===== Chat ===== */
   .chat-wrap {
     display: flex;
@@ -563,9 +620,19 @@
     <span class="brand-mark">LB</span>
     <span class="brand-name">Logbook</span>
   </div>
-  <div class="clock">
-    <div class="date" id="clockDate">—</div>
-    <div id="clockTime">--:--</div>
+  <div class="clocks">
+    <div class="clock-zone">
+      <div class="zone-label">Jakarta</div>
+      <div class="zone-time" id="clockJakarta">--:--</div>
+    </div>
+    <div class="clock-zone">
+      <div class="zone-label">London</div>
+      <div class="zone-time" id="clockLondon">--:--</div>
+    </div>
+    <div class="clock-zone">
+      <div class="zone-label">UTC</div>
+      <div class="zone-time" id="clockUTC">--:--</div>
+    </div>
   </div>
 </header>
 
@@ -805,6 +872,11 @@
         <input type="date" id="issueDue">
       </div>
     </div>
+    <div class="field">
+      <label>Links (e.g. where this was raised — Slack, Discord, screenshots)</label>
+      <div id="issueLinksList"></div>
+      <button type="button" onclick="addIssueLinkRow()" style="margin-top:6px;">+ Add link</button>
+    </div>
     <div class="modal-actions">
       <button id="issueDeleteBtn" class="danger" style="display:none" onclick="deleteIssue()">Delete</button>
       <button onclick="closeModal('issueModalBackdrop')">Cancel</button>
@@ -830,6 +902,11 @@
       <label>Checklist</label>
       <div id="noteItemsList"></div>
       <button type="button" onclick="addNoteItemRow()" style="margin-top:6px;">+ Add item</button>
+    </div>
+    <div class="field">
+      <label>Links (e.g. where this was raised — Slack, Discord, screenshots)</label>
+      <div id="noteLinksList"></div>
+      <button type="button" onclick="addNoteLinkRow()" style="margin-top:6px;">+ Add link</button>
     </div>
     <div class="field">
       <label>Tags (comma separated)</label>
@@ -1024,8 +1101,10 @@ function switchView(name) {
 ============================================================ */
 function updateClock() {
   const now = new Date();
-  document.getElementById('clockTime').textContent = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-  document.getElementById('clockDate').textContent = now.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  const opts = { hour: '2-digit', minute: '2-digit', hour12: false };
+  document.getElementById('clockJakarta').textContent = now.toLocaleTimeString('en-GB', { ...opts, timeZone: 'Asia/Jakarta' });
+  document.getElementById('clockLondon').textContent = now.toLocaleTimeString('en-GB', { ...opts, timeZone: 'Europe/London' });
+  document.getElementById('clockUTC').textContent = now.toLocaleTimeString('en-GB', { ...opts, timeZone: 'UTC' });
 }
 setInterval(updateClock, 1000 * 30);
 
@@ -1116,6 +1195,7 @@ function openIssueModal(issueId = null) {
   document.getElementById('issueDue').value = '';
   document.getElementById('issueDeleteBtn').style.display = 'none';
   document.getElementById('issueModalTitle').textContent = 'New to-do';
+  issueLinksState = [];
 
   if (issueId) {
     const iss = DATA.issues.find(i => i.id === issueId);
@@ -1129,8 +1209,10 @@ function openIssueModal(issueId = null) {
       document.getElementById('issueDue').value = iss.due || '';
       document.getElementById('issueDeleteBtn').style.display = 'inline-block';
       document.getElementById('issueModalTitle').textContent = 'Edit to-do';
+      issueLinksState = (iss.links || []).map(l => ({ ...l }));
     }
   }
+  renderIssueLinkRows();
   backdrop.classList.add('active');
 }
 
@@ -1144,6 +1226,10 @@ function saveIssue() {
   const tags = document.getElementById('issueTags').value
     .split(',').map(t => t.trim()).filter(Boolean);
 
+  const links = issueLinksState
+    .map(l => ({ url: (l.url || '').trim(), desc: (l.desc || '').trim() }))
+    .filter(l => l.url);
+
   const issue = {
     id: id || uid(),
     title,
@@ -1151,6 +1237,7 @@ function saveIssue() {
     priority: document.getElementById('issuePriority').value,
     status: document.getElementById('issueStatus').value,
     tags,
+    links,
     due: document.getElementById('issueDue').value,
     createdAt: id ? (DATA.issues.find(i => i.id === id)?.createdAt || Date.now()) : Date.now()
   };
@@ -1204,6 +1291,7 @@ function openNoteModal(noteId = null) {
   document.getElementById('noteDeleteBtn').style.display = 'none';
   document.getElementById('noteModalTitle').textContent = 'New note';
   noteItemsState = [];
+  noteLinksState = [];
 
   if (noteId) {
     const note = DATA.notes.find(n => n.id === noteId);
@@ -1221,10 +1309,12 @@ function openNoteModal(noteId = null) {
       document.getElementById('noteDeleteBtn').style.display = 'inline-block';
       document.getElementById('noteModalTitle').textContent = 'Edit note';
       noteItemsState = (note.items || []).map(i => ({ ...i }));
+      noteLinksState = (note.links || []).map(l => ({ ...l }));
     }
   }
   toggleStaleFields();
   renderNoteItemRows();
+  renderNoteLinkRows();
   backdrop.classList.add('active');
 }
 
@@ -1264,6 +1354,54 @@ function removeNoteItemRow(idx) {
   renderNoteItemRows();
 }
 
+/* ----- Generic link log helpers (used by notes and to-dos) ----- */
+let noteLinksState = [];
+let issueLinksState = [];
+
+function renderLinkRows(containerId, state, prefix) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = state.map((link, idx) => `
+    <div class="link-row">
+      <input type="url" class="link-url" value="${escapeHtml(link.url)}" placeholder="https://…" oninput="${prefix}UpdateUrl(${idx}, this.value)">
+      <input type="text" class="link-desc" value="${escapeHtml(link.desc || '')}" placeholder="Description" oninput="${prefix}UpdateDesc(${idx}, this.value)">
+      <button type="button" class="icon-btn remove-item ghost" title="Remove" onclick="${prefix}RemoveRow(${idx})">×</button>
+    </div>
+  `).join('');
+}
+
+function renderNoteLinkRows() { renderLinkRows('noteLinksList', noteLinksState, 'noteLink'); }
+function addNoteLinkRow() {
+  noteLinksState.push({ url: '', desc: '' });
+  renderNoteLinkRows();
+  const inputs = document.querySelectorAll('#noteLinksList input[type="url"]');
+  if (inputs.length) inputs[inputs.length - 1].focus();
+}
+function noteLinkUpdateUrl(idx, value) { noteLinksState[idx].url = value; }
+function noteLinkUpdateDesc(idx, value) { noteLinksState[idx].desc = value; }
+function noteLinkRemoveRow(idx) { noteLinksState.splice(idx, 1); renderNoteLinkRows(); }
+
+function renderIssueLinkRows() { renderLinkRows('issueLinksList', issueLinksState, 'issueLink'); }
+function addIssueLinkRow() {
+  issueLinksState.push({ url: '', desc: '' });
+  renderIssueLinkRows();
+  const inputs = document.querySelectorAll('#issueLinksList input[type="url"]');
+  if (inputs.length) inputs[inputs.length - 1].focus();
+}
+function issueLinkUpdateUrl(idx, value) { issueLinksState[idx].url = value; }
+function issueLinkUpdateDesc(idx, value) { issueLinksState[idx].desc = value; }
+function issueLinkRemoveRow(idx) { issueLinksState.splice(idx, 1); renderIssueLinkRows(); }
+
+function renderLinkPreview(links) {
+  const valid = (links || []).filter(l => l.url);
+  if (valid.length === 0) return '';
+  return `<div class="link-preview-list">${valid.map(l => `
+    <div class="lp">
+      ${l.desc ? `<span class="lp-desc">${escapeHtml(l.desc)}:</span>` : ''}
+      <a href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${escapeHtml(truncate(l.url, 60))}</a>
+    </div>
+  `).join('')}</div>`;
+}
+
 function saveNote() {
   const title = document.getElementById('noteTitle').value.trim();
   if (!title) {
@@ -1277,6 +1415,10 @@ function saveNote() {
   const items = noteItemsState
     .map(i => ({ text: (i.text || '').trim(), done: !!i.done }))
     .filter(i => i.text);
+
+  const links = noteLinksState
+    .map(l => ({ url: (l.url || '').trim(), desc: (l.desc || '').trim() }))
+    .filter(l => l.url);
 
   const existing = id ? DATA.notes.find(n => n.id === id) : null;
   const staleTracking = document.getElementById('noteStaleTracking').checked;
@@ -1296,6 +1438,7 @@ function saveNote() {
     title,
     content: document.getElementById('noteContent').value.trim(),
     items,
+    links,
     tags,
     pinned: document.getElementById('notePinned').checked,
     alertDate: document.getElementById('noteAlertDate').value,
@@ -1519,6 +1662,7 @@ function renderIssues() {
           <div style="flex:1; min-width:0; cursor:pointer;" onclick="openIssueModal('${iss.id}')">
             <div class="card-title">${escapeHtml(iss.title)}</div>
             ${iss.description ? `<div class="card-desc">${escapeHtml(truncate(iss.description, 160))}</div>` : ''}
+            ${renderLinkPreview(iss.links)}
             <div class="card-meta">
               <span class="tag p-${iss.priority}">${iss.priority}</span>
               <span class="tag status-${iss.status}">${statusLabel}</span>
@@ -1563,6 +1707,7 @@ function renderNotes() {
       ${items.length ? `<div class="note-checklist-preview">${items.map(i => `
         <div class="ci ${i.done ? 'done' : ''}"><span class="box">${i.done ? '✓' : ''}</span>${escapeHtml(i.text)}</div>
       `).join('')}</div>` : ''}
+      ${renderLinkPreview(note.links)}
       <div class="card-meta">
         ${(note.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
         ${isFlagged ? `<span class="tag todo-flag">Needs attention</span>` : ''}
@@ -1716,15 +1861,15 @@ function buildDataSnapshot() {
     today: today,
     now: new Date().toISOString(),
     events: DATA.events.map(e => ({ id: e.id, title: e.title, date: e.date, time: e.time, notes: e.notes, alertMinutes: e.alertMinutes })),
-    issues: DATA.issues.map(i => ({ id: i.id, title: i.title, description: i.description, priority: i.priority, status: i.status, tags: i.tags, due: i.due })),
-    notes: DATA.notes.map(n => ({ id: n.id, title: n.title, content: n.content, items: n.items, tags: n.tags, pinned: n.pinned, alertDate: n.alertDate, alertTime: n.alertTime, staleTracking: n.staleTracking, completed: n.completed, dormant: n.dormant }))
+    issues: DATA.issues.map(i => ({ id: i.id, title: i.title, description: i.description, priority: i.priority, status: i.status, tags: i.tags, links: i.links, due: i.due })),
+    notes: DATA.notes.map(n => ({ id: n.id, title: n.title, content: n.content, items: n.items, links: n.links, tags: n.tags, pinned: n.pinned, alertDate: n.alertDate, alertTime: n.alertTime, staleTracking: n.staleTracking, completed: n.completed, dormant: n.dormant }))
   });
 }
 
 const SYSTEM_PROMPT = `You are a personal assistant embedded in "Logbook", a personal organizer app with three data types:
 - events (appointments): {id, title, date (YYYY-MM-DD), time (HH:MM or empty), notes, alertMinutes}
-- issues (to-do/task tracker — call these "to-dos" when talking to the user): {id, title, description, priority (low/medium/high), status (open/progress/done), tags, due (YYYY-MM-DD or empty)}
-- notes (threads/info): {id, title, content, items (checklist: array of {text, done}), tags, pinned, alertDate (YYYY-MM-DD or empty), alertTime (HH:MM or empty), staleTracking (bool), completed (bool), dormant (bool)}
+- issues (to-do/task tracker — call these "to-dos" when talking to the user): {id, title, description, priority (low/medium/high), status (open/progress/done), tags, links (array of {url, desc} — where this was raised, e.g. Slack/Discord/screenshot links), due (YYYY-MM-DD or empty)}
+- notes (threads/info): {id, title, content, items (checklist: array of {text, done}), links (array of {url, desc}), tags, pinned, alertDate (YYYY-MM-DD or empty), alertTime (HH:MM or empty), staleTracking (bool), completed (bool), dormant (bool)}
 
 You will be given the user's current data as JSON, and their message.
 
@@ -1871,6 +2016,7 @@ function applyActions(actions) {
           priority: action.data.priority || 'medium',
           status: action.data.status || 'open',
           tags: action.data.tags || [],
+          links: action.data.links || [],
           due: action.data.due || '',
           createdAt: Date.now()
         });
@@ -1889,6 +2035,7 @@ function applyActions(actions) {
           title: action.data.title || 'Untitled',
           content: action.data.content || '',
           items: action.data.items || [],
+          links: action.data.links || [],
           tags: action.data.tags || [],
           pinned: !!action.data.pinned,
           alertDate: action.data.alertDate || '',
