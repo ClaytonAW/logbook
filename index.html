@@ -81,12 +81,17 @@
 
   .clocks {
     display: flex;
-    gap: 14px;
+    gap: 8px;
   }
 
   .clock-zone {
     font-family: var(--font-mono);
-    text-align: right;
+    text-align: center;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 10px;
+    background: var(--bg-raised);
+    min-width: 64px;
   }
 
   .clock-zone .zone-label {
@@ -97,14 +102,17 @@
   }
 
   .clock-zone .zone-time {
-    color: var(--text-dim);
-    font-size: 13px;
+    color: var(--amber);
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 2px;
   }
 
-  @media (max-width: 520px) {
-    .clocks { gap: 8px; }
-    .clock-zone .zone-label { font-size: 9px; }
-    .clock-zone .zone-time { font-size: 11px; }
+  @media (max-width: 560px) {
+    .clocks { gap: 6px; }
+    .clock-zone { padding: 4px 7px; min-width: 50px; }
+    .clock-zone .zone-label { font-size: 8.5px; }
+    .clock-zone .zone-time { font-size: 12px; }
   }
 
   /* ===== Main layout ===== */
@@ -657,7 +665,7 @@
         <div class="card">
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button onclick="openEventModal()">+ Appointment</button>
-            <button onclick="openIssueModal()">+ Issue</button>
+            <button onclick="openIssueModal()">+ To-do</button>
             <button onclick="openNoteModal()">+ Note</button>
           </div>
         </div>
