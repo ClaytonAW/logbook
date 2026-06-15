@@ -1,0 +1,1740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Logbook</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#14181c">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<style>
+  :root {
+    --bg: #14181c;
+    --bg-panel: #1b2126;
+    --bg-raised: #232a31;
+    --border: #2e373f;
+    --border-light: #3a4550;
+    --text: #e6e8ea;
+    --text-dim: #8b969e;
+    --text-faint: #5c6770;
+    --amber: #e8a23d;
+    --amber-dim: #6b5226;
+    --red: #d96c5f;
+    --green: #7fb88a;
+    --blue: #6fa3c7;
+    --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  /* ===== Header ===== */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-panel);
+    flex-shrink: 0;
+  }
+
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .brand-mark {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--amber);
+    border: 1px solid var(--amber-dim);
+    border-radius: 3px;
+    padding: 2px 6px;
+    letter-spacing: 0.05em;
+  }
+
+  .brand-name {
+    font-weight: 600;
+    font-size: 17px;
+    letter-spacing: 0.01em;
+  }
+
+  .clock {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-dim);
+    text-align: right;
+  }
+
+  .clock .date { color: var(--text-faint); font-size: 11px; }
+
+  /* ===== Main layout ===== */
+  main {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .view {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: none;
+  }
+
+  .view.active { display: block; }
+
+  .view-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .view-title {
+    font-size: 13px;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-faint);
+  }
+
+  /* ===== Buttons ===== */
+  button {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    cursor: pointer;
+    border: 1px solid var(--border-light);
+    background: var(--bg-raised);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 8px 14px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  button:hover { background: #2a323a; border-color: var(--amber-dim); }
+  button:active { transform: scale(0.98); }
+
+  button.primary {
+    background: var(--amber);
+    border-color: var(--amber);
+    color: #1a1206;
+    font-weight: 600;
+  }
+  button.primary:hover { background: #f0ad4d; }
+
+  button.ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--text-dim);
+    padding: 4px 8px;
+  }
+  button.ghost:hover { background: var(--bg-raised); color: var(--text); }
+
+  button.danger:hover { border-color: var(--red); color: var(--red); }
+
+  button.icon-btn {
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0; font-size: 16px;
+  }
+
+  /* ===== Cards ===== */
+  .card {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+
+  .card.overdue { border-left: 3px solid var(--red); }
+  .card.soon { border-left: 3px solid var(--amber); }
+  .card.done { opacity: 0.5; }
+
+  .card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .card-title {
+    font-weight: 500;
+    font-size: 15px;
+    margin-bottom: 4px;
+    word-break: break-word;
+  }
+
+  .card-meta {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+
+  .card-desc {
+    color: var(--text-dim);
+    font-size: 13.5px;
+    margin-top: 6px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .card-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  /* ===== Tags / badges ===== */
+  .tag {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 2px 7px;
+    border-radius: 3px;
+    border: 1px solid var(--border-light);
+    color: var(--text-dim);
+  }
+
+  .tag.p-high { color: var(--red); border-color: #5a2f29; background: rgba(217,108,95,0.08); }
+  .tag.p-med { color: var(--amber); border-color: var(--amber-dim); background: rgba(232,162,61,0.08); }
+  .tag.p-low { color: var(--blue); border-color: #2a4254; background: rgba(111,163,199,0.08); }
+
+  .tag.status-open { color: var(--amber); border-color: var(--amber-dim); }
+  .tag.status-progress { color: var(--blue); border-color: #2a4254; }
+  .tag.status-done { color: var(--green); border-color: #2f4a35; }
+
+  /* ===== Empty states ===== */
+  .empty {
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--text-faint);
+  }
+  .empty .empty-icon {
+    font-family: var(--font-mono);
+    font-size: 24px;
+    color: var(--border-light);
+    margin-bottom: 10px;
+  }
+  .empty .empty-title { color: var(--text-dim); font-size: 14px; margin-bottom: 4px; }
+  .empty .empty-sub { font-size: 12.5px; }
+
+  /* ===== Forms / Modal ===== */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 16px;
+  }
+  .modal-backdrop.active { display: flex; }
+
+  .modal {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    width: 100%;
+    max-width: 460px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 20px;
+  }
+
+  .modal h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--amber);
+  }
+
+  .field { margin-bottom: 12px; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 5px;
+    font-family: var(--font-mono);
+    letter-spacing: 0.04em;
+  }
+
+  input, select, textarea {
+    width: 100%;
+    background: var(--bg-raised);
+    border: 1px solid var(--border-light);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 9px 11px;
+    font-size: 14px;
+    font-family: var(--font-sans);
+  }
+  textarea { resize: vertical; min-height: 70px; }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--amber);
+  }
+
+  .field-row { display: flex; gap: 10px; }
+  .field-row .field { flex: 1; }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  /* ===== Today view ===== */
+  .today-grid {
+    display: grid;
+    gap: 16px;
+  }
+  @media (min-width: 760px) {
+    .today-grid { grid-template-columns: 1fr 1fr; }
+  }
+  .section-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-faint);
+    margin-bottom: 8px;
+    margin-top: 18px;
+  }
+  .section-label:first-child { margin-top: 0; }
+
+  /* ===== Calendar list grouping ===== */
+  .day-group { margin-bottom: 18px; }
+  .day-header {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--amber);
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ===== Notes ===== */
+  .note-card { cursor: pointer; }
+  .pin-star { color: var(--amber); margin-right: 6px; }
+
+  /* ===== Chat ===== */
+  .chat-wrap {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .msg {
+    max-width: 85%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .msg.user {
+    align-self: flex-end;
+    background: var(--amber-dim);
+    color: var(--text);
+    border: 1px solid var(--amber-dim);
+  }
+  .msg.assistant {
+    align-self: flex-start;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+  }
+  .msg.system {
+    align-self: center;
+    color: var(--text-faint);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: none;
+    border: none;
+  }
+  .chat-input-bar {
+    display: flex;
+    gap: 8px;
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-panel);
+    flex-shrink: 0;
+  }
+  .chat-input-bar textarea {
+    flex: 1;
+    min-height: 42px;
+    max-height: 120px;
+    resize: none;
+  }
+  .typing {
+    align-self: flex-start;
+    color: var(--text-faint);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 10px 14px;
+  }
+
+  /* ===== Bottom nav ===== */
+  nav {
+    display: flex;
+    border-top: 1px solid var(--border);
+    background: var(--bg-panel);
+    flex-shrink: 0;
+  }
+  nav button {
+    flex: 1;
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: 11px 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    color: var(--text-faint);
+    font-size: 11px;
+    font-family: var(--font-mono);
+    letter-spacing: 0.04em;
+  }
+  nav button .nav-icon { font-size: 17px; }
+  nav button.active { color: var(--amber); }
+  nav button:hover { background: var(--bg-raised); }
+  nav button.active:hover { background: none; }
+
+  /* ===== Settings ===== */
+  .settings-block {
+    margin-bottom: 22px;
+  }
+  .settings-block h4 {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .settings-block p.hint {
+    font-size: 12.5px;
+    color: var(--text-faint);
+    margin-top: 6px;
+    line-height: 1.5;
+  }
+  .key-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    margin-top: 8px;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); }
+  .dot.ok { background: var(--green); }
+
+  /* ===== Toast ===== */
+  .toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-raised);
+    border: 1px solid var(--border-light);
+    color: var(--text);
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 200;
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    pointer-events: none;
+    font-family: var(--font-mono);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  .loading-screen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 999;
+    color: var(--text-faint);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    gap: 10px;
+  }
+</style>
+</head>
+<body>
+
+<div class="loading-screen" id="loadingScreen">
+  <div class="brand-mark">LB</div>
+  <div>loading logbook…</div>
+</div>
+
+<header>
+  <div class="brand">
+    <span class="brand-mark">LB</span>
+    <span class="brand-name">Logbook</span>
+  </div>
+  <div class="clock">
+    <div class="date" id="clockDate">—</div>
+    <div id="clockTime">--:--</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- TODAY -->
+  <section class="view active" id="view-today">
+    <div class="view-header">
+      <div class="view-title">Today</div>
+    </div>
+    <div class="today-grid">
+      <div>
+        <div class="section-label">Up next</div>
+        <div id="todayEvents"></div>
+        <div class="section-label">Due / overdue issues</div>
+        <div id="todayIssues"></div>
+      </div>
+      <div>
+        <div class="section-label">Pinned notes</div>
+        <div id="todayPinned"></div>
+        <div class="section-label">Quick add</div>
+        <div class="card">
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button onclick="openEventModal()">+ Appointment</button>
+            <button onclick="openIssueModal()">+ Issue</button>
+            <button onclick="openNoteModal()">+ Note</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CALENDAR -->
+  <section class="view" id="view-calendar">
+    <div class="view-header">
+      <div class="view-title">Calendar</div>
+      <button class="primary" onclick="openEventModal()">+ New appointment</button>
+    </div>
+    <div id="calendarList"></div>
+  </section>
+
+  <!-- ISSUES -->
+  <section class="view" id="view-issues">
+    <div class="view-header">
+      <div class="view-title">Issues</div>
+      <button class="primary" onclick="openIssueModal()">+ New issue</button>
+    </div>
+    <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
+      <select id="issueFilter" onchange="renderIssues()" style="width:auto;">
+        <option value="all">All statuses</option>
+        <option value="open">Open</option>
+        <option value="progress">In progress</option>
+        <option value="done">Done</option>
+      </select>
+      <select id="issueSort" onchange="renderIssues()" style="width:auto;">
+        <option value="priority">Sort: priority</option>
+        <option value="due">Sort: due date</option>
+        <option value="created">Sort: newest</option>
+      </select>
+    </div>
+    <div id="issuesList"></div>
+  </section>
+
+  <!-- NOTES -->
+  <section class="view" id="view-notes">
+    <div class="view-header">
+      <div class="view-title">Notes &amp; threads</div>
+      <button class="primary" onclick="openNoteModal()">+ New note</button>
+    </div>
+    <div class="field" style="margin-bottom:14px;">
+      <input type="text" id="noteSearch" placeholder="Search notes and tags…" oninput="renderNotes()">
+    </div>
+    <div id="notesList"></div>
+  </section>
+
+  <!-- ASSISTANT -->
+  <section class="view" id="view-chat">
+    <div class="chat-wrap">
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-input-bar">
+        <textarea id="chatInput" placeholder="Ask about your calendar, issues, or notes… or tell it to add something" onkeydown="handleChatKey(event)"></textarea>
+        <button class="primary" onclick="sendChat()" id="chatSendBtn">Send</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="view" id="view-settings">
+    <div class="view-header">
+      <div class="view-title">Settings</div>
+    </div>
+
+    <div class="settings-block">
+      <h4>Claude API key</h4>
+      <div class="field">
+        <input type="password" id="apiKeyInput" placeholder="sk-ant-...">
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="primary" onclick="saveApiKey()">Save key</button>
+        <button class="danger" onclick="clearApiKey()">Remove</button>
+      </div>
+      <div class="key-status">
+        <span class="dot" id="keyDot"></span>
+        <span id="keyStatusText">No key saved</span>
+      </div>
+      <p class="hint">
+        Stored only in this browser's local storage — never synced or sent anywhere except directly to Anthropic's API when you use the Assistant tab.
+        Get a key at console.anthropic.com (requires a separate API billing account from your Claude.ai subscription).
+      </p>
+    </div>
+
+    <div class="settings-block">
+      <h4>Data &amp; sync</h4>
+      <p class="hint">
+        Your appointments, issues, and notes are saved to your account and sync automatically across devices you're signed into.
+        The API key above is device-local only and must be entered separately on each device.
+      </p>
+      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button onclick="exportData()">Export data (JSON)</button>
+        <button class="danger" onclick="confirmWipe()">Wipe all data</button>
+      </div>
+    </div>
+
+    <div class="settings-block">
+      <h4>About</h4>
+      <p class="hint">
+        Logbook — appointments, issues, and notes in one place, with an assistant that can see all of it.
+        Notifications require this tab to be open; for best results keep it open or pinned on a device you check regularly.
+      </p>
+    </div>
+  </section>
+
+</main>
+
+<nav>
+  <button class="active" data-view="today" onclick="switchView('today')">
+    <span class="nav-icon">◷</span><span>Today</span>
+  </button>
+  <button data-view="calendar" onclick="switchView('calendar')">
+    <span class="nav-icon">▦</span><span>Calendar</span>
+  </button>
+  <button data-view="issues" onclick="switchView('issues')">
+    <span class="nav-icon">◆</span><span>Issues</span>
+  </button>
+  <button data-view="notes" onclick="switchView('notes')">
+    <span class="nav-icon">▤</span><span>Notes</span>
+  </button>
+  <button data-view="chat" onclick="switchView('chat')">
+    <span class="nav-icon">✦</span><span>Assistant</span>
+  </button>
+  <button data-view="settings" onclick="switchView('settings')">
+    <span class="nav-icon">⚙</span><span>Settings</span>
+  </button>
+</nav>
+
+<!-- Event Modal -->
+<div class="modal-backdrop" id="eventModalBackdrop">
+  <div class="modal">
+    <h3 id="eventModalTitle">New appointment</h3>
+    <input type="hidden" id="eventId">
+    <div class="field">
+      <label>Title</label>
+      <input type="text" id="eventTitle" placeholder="e.g. Standup with team">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="eventDate">
+      </div>
+      <div class="field">
+        <label>Time</label>
+        <input type="time" id="eventTime">
+      </div>
+    </div>
+    <div class="field">
+      <label>Notes (optional)</label>
+      <textarea id="eventNotes" placeholder="Agenda, links, context…"></textarea>
+    </div>
+    <div class="field">
+      <label>Alert</label>
+      <select id="eventAlert">
+        <option value="0">At start time</option>
+        <option value="5">5 minutes before</option>
+        <option value="15" selected>15 minutes before</option>
+        <option value="30">30 minutes before</option>
+        <option value="60">1 hour before</option>
+        <option value="1440">1 day before</option>
+        <option value="-1">No alert</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button id="eventDeleteBtn" class="danger" style="display:none" onclick="deleteEvent()">Delete</button>
+      <button onclick="closeModal('eventModalBackdrop')">Cancel</button>
+      <button class="primary" onclick="saveEvent()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Issue Modal -->
+<div class="modal-backdrop" id="issueModalBackdrop">
+  <div class="modal">
+    <h3 id="issueModalTitle">New issue</h3>
+    <input type="hidden" id="issueId">
+    <div class="field">
+      <label>Title</label>
+      <input type="text" id="issueTitle" placeholder="e.g. Login button broken on Safari">
+    </div>
+    <div class="field">
+      <label>Description (optional)</label>
+      <textarea id="issueDesc" placeholder="Steps to reproduce, context, links…"></textarea>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Priority</label>
+        <select id="issuePriority">
+          <option value="low">Low</option>
+          <option value="medium" selected>Medium</option>
+          <option value="high">High</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Status</label>
+        <select id="issueStatus">
+          <option value="open" selected>Open</option>
+          <option value="progress">In progress</option>
+          <option value="done">Done</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Tags (comma separated)</label>
+        <input type="text" id="issueTags" placeholder="bug, frontend">
+      </div>
+      <div class="field">
+        <label>Due date (optional)</label>
+        <input type="date" id="issueDue">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="issueDeleteBtn" class="danger" style="display:none" onclick="deleteIssue()">Delete</button>
+      <button onclick="closeModal('issueModalBackdrop')">Cancel</button>
+      <button class="primary" onclick="saveIssue()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Note Modal -->
+<div class="modal-backdrop" id="noteModalBackdrop">
+  <div class="modal">
+    <h3 id="noteModalTitle">New note</h3>
+    <input type="hidden" id="noteId">
+    <div class="field">
+      <label>Title</label>
+      <input type="text" id="noteTitle" placeholder="e.g. Acme contract negotiation">
+    </div>
+    <div class="field">
+      <label>Content</label>
+      <textarea id="noteContent" placeholder="Ongoing context, thread summary, links…" style="min-height:140px;"></textarea>
+    </div>
+    <div class="field">
+      <label>Tags (comma separated)</label>
+      <input type="text" id="noteTags" placeholder="client, finance">
+    </div>
+    <div class="field" style="display:flex; align-items:center; gap:8px; flex-direction:row;">
+      <input type="checkbox" id="notePinned" style="width:auto;">
+      <label style="margin:0;" for="notePinned">Pin to Today view</label>
+    </div>
+    <div class="modal-actions">
+      <button id="noteDeleteBtn" class="danger" style="display:none" onclick="deleteNote()">Delete</button>
+      <button onclick="closeModal('noteModalBackdrop')">Cancel</button>
+      <button class="primary" onclick="saveNote()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   STATE
+============================================================ */
+let DATA = {
+  events: [],
+  issues: [],
+  notes: [],
+  chatHistory: []
+};
+
+let dataLoaded = false;
+const API_KEY_STORAGE = 'logbook-api-key';
+
+/* ============================================================
+   SUPABASE STORAGE
+============================================================ */
+const SUPABASE_URL = 'https://qhfdbnjrredahoyjnnzb.supabase.co/rest/v1';
+const SUPABASE_KEY = 'sb_publishable_97wnS2yYCDvzPUIoRdPoWw_W36QpEvQ';
+const ROW_ID = 'Say1buaya!Notbagus';
+
+const supabaseHeaders = {
+  'apikey': SUPABASE_KEY,
+  'Authorization': 'Bearer ' + SUPABASE_KEY,
+  'Content-Type': 'application/json',
+  'Prefer': 'resolution=merge-duplicates'
+};
+
+async function loadData() {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/logbook_data?id=eq.${encodeURIComponent(ROW_ID)}&select=data`,
+      { headers: supabaseHeaders }
+    );
+    if (!res.ok) throw new Error(`Load failed: ${res.status} ${await res.text()}`);
+    const rows = await res.json();
+    console.log('Logbook: load result', rows);
+    if (rows && rows.length > 0 && rows[0].data) {
+      const parsed = rows[0].data;
+      DATA.events = parsed.events || [];
+      DATA.issues = parsed.issues || [];
+      DATA.notes = parsed.notes || [];
+      DATA.chatHistory = parsed.chatHistory || [];
+    }
+  } catch (e) {
+    console.error('Logbook: load error, starting fresh.', e);
+    showToast('Could not load saved data — check connection');
+  }
+  dataLoaded = true;
+}
+
+let saveTimer = null;
+function saveData() {
+  attemptSave(JSON.stringify(DATA), 0);
+}
+
+async function attemptSave(payload, retryCount) {
+  const maxRetries = 3;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/logbook_data?on_conflict=id`, {
+      method: 'POST',
+      headers: supabaseHeaders,
+      body: JSON.stringify({ id: ROW_ID, data: JSON.parse(payload), updated_at: new Date().toISOString() })
+    });
+    if (!res.ok) throw new Error(`Save failed: ${res.status} ${await res.text()}`);
+    console.log('Logbook: save OK');
+  } catch (e) {
+    console.error('Storage error (attempt ' + (retryCount + 1) + '):', e);
+    if (retryCount < maxRetries) {
+      setTimeout(() => attemptSave(payload, retryCount + 1), 500 * (retryCount + 1));
+    } else {
+      showToast('Save failed — check connection');
+    }
+  }
+}
+
+/* ============================================================
+   UTILITIES
+============================================================ */
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+function showToast(msg, duration = 2200) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function fmtDate(dateStr) {
+  // dateStr: YYYY-MM-DD
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function fmtTime(timeStr) {
+  if (!timeStr) return '';
+  const [h, m] = timeStr.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h, m);
+  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function eventDateTime(ev) {
+  return new Date(ev.date + 'T' + (ev.time || '00:00') + ':00');
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str || '';
+  return div.innerHTML;
+}
+
+/* ============================================================
+   VIEW SWITCHING
+============================================================ */
+function switchView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.querySelector(`nav button[data-view="${name}"]`).classList.add('active');
+
+  if (name === 'today') renderToday();
+  if (name === 'calendar') renderCalendar();
+  if (name === 'issues') renderIssues();
+  if (name === 'notes') renderNotes();
+  if (name === 'chat') renderChat();
+}
+
+/* ============================================================
+   CLOCK
+============================================================ */
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clockTime').textContent = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('clockDate').textContent = now.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
+setInterval(updateClock, 1000 * 30);
+
+/* ============================================================
+   MODALS
+============================================================ */
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+/* ----- Event modal ----- */
+function openEventModal(eventId = null) {
+  const backdrop = document.getElementById('eventModalBackdrop');
+  document.getElementById('eventId').value = '';
+  document.getElementById('eventTitle').value = '';
+  document.getElementById('eventDate').value = todayStr();
+  document.getElementById('eventTime').value = '';
+  document.getElementById('eventNotes').value = '';
+  document.getElementById('eventAlert').value = '15';
+  document.getElementById('eventDeleteBtn').style.display = 'none';
+  document.getElementById('eventModalTitle').textContent = 'New appointment';
+
+  if (eventId) {
+    const ev = DATA.events.find(e => e.id === eventId);
+    if (ev) {
+      document.getElementById('eventId').value = ev.id;
+      document.getElementById('eventTitle').value = ev.title;
+      document.getElementById('eventDate').value = ev.date;
+      document.getElementById('eventTime').value = ev.time || '';
+      document.getElementById('eventNotes').value = ev.notes || '';
+      document.getElementById('eventAlert').value = String(ev.alertMinutes ?? 15);
+      document.getElementById('eventDeleteBtn').style.display = 'inline-block';
+      document.getElementById('eventModalTitle').textContent = 'Edit appointment';
+    }
+  }
+  backdrop.classList.add('active');
+}
+
+function saveEvent() {
+  const title = document.getElementById('eventTitle').value.trim();
+  const date = document.getElementById('eventDate').value;
+  if (!title || !date) {
+    showToast('Title and date are required');
+    return;
+  }
+  const id = document.getElementById('eventId').value;
+  const ev = {
+    id: id || uid(),
+    title,
+    date,
+    time: document.getElementById('eventTime').value,
+    notes: document.getElementById('eventNotes').value.trim(),
+    alertMinutes: parseInt(document.getElementById('eventAlert').value, 10),
+    notified: false,
+    createdAt: id ? (DATA.events.find(e => e.id === id)?.createdAt || Date.now()) : Date.now()
+  };
+
+  if (id) {
+    const idx = DATA.events.findIndex(e => e.id === id);
+    if (idx >= 0) DATA.events[idx] = ev;
+  } else {
+    DATA.events.push(ev);
+  }
+  saveData();
+  closeModal('eventModalBackdrop');
+  renderAllViews();
+  showToast('Saved');
+}
+
+function deleteEvent() {
+  const id = document.getElementById('eventId').value;
+  DATA.events = DATA.events.filter(e => e.id !== id);
+  saveData();
+  closeModal('eventModalBackdrop');
+  renderAllViews();
+  showToast('Deleted');
+}
+
+/* ----- Issue modal ----- */
+function openIssueModal(issueId = null) {
+  const backdrop = document.getElementById('issueModalBackdrop');
+  document.getElementById('issueId').value = '';
+  document.getElementById('issueTitle').value = '';
+  document.getElementById('issueDesc').value = '';
+  document.getElementById('issuePriority').value = 'medium';
+  document.getElementById('issueStatus').value = 'open';
+  document.getElementById('issueTags').value = '';
+  document.getElementById('issueDue').value = '';
+  document.getElementById('issueDeleteBtn').style.display = 'none';
+  document.getElementById('issueModalTitle').textContent = 'New issue';
+
+  if (issueId) {
+    const iss = DATA.issues.find(i => i.id === issueId);
+    if (iss) {
+      document.getElementById('issueId').value = iss.id;
+      document.getElementById('issueTitle').value = iss.title;
+      document.getElementById('issueDesc').value = iss.description || '';
+      document.getElementById('issuePriority').value = iss.priority;
+      document.getElementById('issueStatus').value = iss.status;
+      document.getElementById('issueTags').value = (iss.tags || []).join(', ');
+      document.getElementById('issueDue').value = iss.due || '';
+      document.getElementById('issueDeleteBtn').style.display = 'inline-block';
+      document.getElementById('issueModalTitle').textContent = 'Edit issue';
+    }
+  }
+  backdrop.classList.add('active');
+}
+
+function saveIssue() {
+  const title = document.getElementById('issueTitle').value.trim();
+  if (!title) {
+    showToast('Title is required');
+    return;
+  }
+  const id = document.getElementById('issueId').value;
+  const tags = document.getElementById('issueTags').value
+    .split(',').map(t => t.trim()).filter(Boolean);
+
+  const issue = {
+    id: id || uid(),
+    title,
+    description: document.getElementById('issueDesc').value.trim(),
+    priority: document.getElementById('issuePriority').value,
+    status: document.getElementById('issueStatus').value,
+    tags,
+    due: document.getElementById('issueDue').value,
+    createdAt: id ? (DATA.issues.find(i => i.id === id)?.createdAt || Date.now()) : Date.now()
+  };
+
+  if (id) {
+    const idx = DATA.issues.findIndex(i => i.id === id);
+    if (idx >= 0) DATA.issues[idx] = issue;
+  } else {
+    DATA.issues.push(issue);
+  }
+  saveData();
+  closeModal('issueModalBackdrop');
+  renderAllViews();
+  showToast('Saved');
+}
+
+function deleteIssue() {
+  const id = document.getElementById('issueId').value;
+  DATA.issues = DATA.issues.filter(i => i.id !== id);
+  saveData();
+  closeModal('issueModalBackdrop');
+  renderAllViews();
+  showToast('Deleted');
+}
+
+function cycleIssueStatus(id) {
+  const issue = DATA.issues.find(i => i.id === id);
+  if (!issue) return;
+  const order = ['open', 'progress', 'done'];
+  const next = order[(order.indexOf(issue.status) + 1) % order.length];
+  issue.status = next;
+  saveData();
+  renderAllViews();
+}
+
+/* ----- Note modal ----- */
+function openNoteModal(noteId = null) {
+  const backdrop = document.getElementById('noteModalBackdrop');
+  document.getElementById('noteId').value = '';
+  document.getElementById('noteTitle').value = '';
+  document.getElementById('noteContent').value = '';
+  document.getElementById('noteTags').value = '';
+  document.getElementById('notePinned').checked = false;
+  document.getElementById('noteDeleteBtn').style.display = 'none';
+  document.getElementById('noteModalTitle').textContent = 'New note';
+
+  if (noteId) {
+    const note = DATA.notes.find(n => n.id === noteId);
+    if (note) {
+      document.getElementById('noteId').value = note.id;
+      document.getElementById('noteTitle').value = note.title;
+      document.getElementById('noteContent').value = note.content || '';
+      document.getElementById('noteTags').value = (note.tags || []).join(', ');
+      document.getElementById('notePinned').checked = !!note.pinned;
+      document.getElementById('noteDeleteBtn').style.display = 'inline-block';
+      document.getElementById('noteModalTitle').textContent = 'Edit note';
+    }
+  }
+  backdrop.classList.add('active');
+}
+
+function saveNote() {
+  const title = document.getElementById('noteTitle').value.trim();
+  if (!title) {
+    showToast('Title is required');
+    return;
+  }
+  const id = document.getElementById('noteId').value;
+  const tags = document.getElementById('noteTags').value
+    .split(',').map(t => t.trim()).filter(Boolean);
+
+  const note = {
+    id: id || uid(),
+    title,
+    content: document.getElementById('noteContent').value.trim(),
+    tags,
+    pinned: document.getElementById('notePinned').checked,
+    createdAt: id ? (DATA.notes.find(n => n.id === id)?.createdAt || Date.now()) : Date.now(),
+    updatedAt: Date.now()
+  };
+
+  if (id) {
+    const idx = DATA.notes.findIndex(n => n.id === id);
+    if (idx >= 0) DATA.notes[idx] = note;
+  } else {
+    DATA.notes.push(note);
+  }
+  saveData();
+  closeModal('noteModalBackdrop');
+  renderAllViews();
+  showToast('Saved');
+}
+
+function deleteNote() {
+  const id = document.getElementById('noteId').value;
+  DATA.notes = DATA.notes.filter(n => n.id !== id);
+  saveData();
+  closeModal('noteModalBackdrop');
+  renderAllViews();
+  showToast('Deleted');
+}
+
+/* ============================================================
+   RENDERING
+============================================================ */
+function renderAllViews() {
+  const active = document.querySelector('nav button.active')?.dataset.view || 'today';
+  if (active === 'today') renderToday();
+  if (active === 'calendar') renderCalendar();
+  if (active === 'issues') renderIssues();
+  if (active === 'notes') renderNotes();
+}
+
+function renderToday() {
+  const now = new Date();
+  const today = todayStr();
+
+  // Upcoming events (today + future, sorted)
+  const upcoming = DATA.events
+    .filter(e => e.date >= today)
+    .sort((a, b) => eventDateTime(a) - eventDateTime(b))
+    .slice(0, 5);
+
+  const evContainer = document.getElementById('todayEvents');
+  if (upcoming.length === 0) {
+    evContainer.innerHTML = emptyState('◷', 'No appointments scheduled', 'Add one to see it here');
+  } else {
+    evContainer.innerHTML = upcoming.map(ev => {
+      const dt = eventDateTime(ev);
+      const isToday = ev.date === today;
+      const soon = isToday && dt - now < 1000 * 60 * 60 && dt - now > -1000*60*30;
+      return `
+        <div class="card ${soon ? 'soon' : ''}" onclick="openEventModal('${ev.id}')">
+          <div class="card-title">${escapeHtml(ev.title)}</div>
+          <div class="card-meta">
+            <span>${isToday ? 'Today' : fmtDate(ev.date)}</span>
+            ${ev.time ? `<span>${fmtTime(ev.time)}</span>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // Issues due soon or overdue, not done
+  const flagged = DATA.issues
+    .filter(i => i.status !== 'done' && i.due)
+    .filter(i => i.due <= addDays(today, 3))
+    .sort((a, b) => a.due.localeCompare(b.due))
+    .slice(0, 5);
+
+  const issContainer = document.getElementById('todayIssues');
+  if (flagged.length === 0) {
+    issContainer.innerHTML = emptyState('◆', 'Nothing due soon', 'Issues with due dates within 3 days appear here');
+  } else {
+    issContainer.innerHTML = flagged.map(iss => {
+      const overdue = iss.due < today;
+      return `
+        <div class="card ${overdue ? 'overdue' : 'soon'}" onclick="openIssueModal('${iss.id}')">
+          <div class="card-title">${escapeHtml(iss.title)}</div>
+          <div class="card-meta">
+            <span class="tag p-${iss.priority}">${iss.priority}</span>
+            <span>${overdue ? 'Overdue: ' : 'Due '}${fmtDate(iss.due)}</span>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // Pinned notes
+  const pinned = DATA.notes.filter(n => n.pinned).sort((a,b) => b.updatedAt - a.updatedAt);
+  const pinContainer = document.getElementById('todayPinned');
+  if (pinned.length === 0) {
+    pinContainer.innerHTML = emptyState('▤', 'No pinned notes', 'Pin notes to keep them visible here');
+  } else {
+    pinContainer.innerHTML = pinned.map(note => `
+      <div class="card note-card" onclick="openNoteModal('${note.id}')">
+        <div class="card-title"><span class="pin-star">★</span>${escapeHtml(note.title)}</div>
+        ${note.content ? `<div class="card-desc">${escapeHtml(truncate(note.content, 120))}</div>` : ''}
+      </div>`).join('');
+  }
+}
+
+function addDays(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function truncate(str, n) {
+  return str.length > n ? str.slice(0, n) + '…' : str;
+}
+
+function emptyState(icon, title, sub) {
+  return `<div class="empty"><div class="empty-icon">${icon}</div><div class="empty-title">${title}</div><div class="empty-sub">${sub}</div></div>`;
+}
+
+function renderCalendar() {
+  const container = document.getElementById('calendarList');
+  if (DATA.events.length === 0) {
+    container.innerHTML = emptyState('▦', 'No appointments yet', 'Tap "New appointment" to add one');
+    return;
+  }
+
+  const today = todayStr();
+  const sorted = [...DATA.events].sort((a, b) => eventDateTime(a) - eventDateTime(b));
+
+  // Group by date
+  const groups = {};
+  sorted.forEach(ev => {
+    if (!groups[ev.date]) groups[ev.date] = [];
+    groups[ev.date].push(ev);
+  });
+
+  container.innerHTML = Object.keys(groups).map(date => {
+    const isPast = date < today;
+    const label = date === today ? 'Today — ' + fmtDate(date) : fmtDate(date);
+    return `
+      <div class="day-group" style="${isPast ? 'opacity:0.55;' : ''}">
+        <div class="day-header">${label}</div>
+        ${groups[date].map(ev => `
+          <div class="card" onclick="openEventModal('${ev.id}')">
+            <div class="card-row">
+              <div>
+                <div class="card-title">${escapeHtml(ev.title)}</div>
+                <div class="card-meta">
+                  ${ev.time ? `<span>${fmtTime(ev.time)}</span>` : '<span>All day</span>'}
+                  ${ev.alertMinutes >= 0 ? `<span>Alert ${ev.alertMinutes === 0 ? 'at start' : ev.alertMinutes + 'm before'}</span>` : ''}
+                </div>
+                ${ev.notes ? `<div class="card-desc">${escapeHtml(ev.notes)}</div>` : ''}
+              </div>
+            </div>
+          </div>
+        `).join('')}
+      </div>`;
+  }).join('');
+}
+
+function renderIssues() {
+  const container = document.getElementById('issuesList');
+  const filter = document.getElementById('issueFilter').value;
+  const sort = document.getElementById('issueSort').value;
+
+  let list = [...DATA.issues];
+  if (filter !== 'all') list = list.filter(i => i.status === filter);
+
+  const priorityOrder = { high: 0, medium: 1, low: 2 };
+  if (sort === 'priority') {
+    list.sort((a, b) => {
+      if (a.status !== b.status) {
+        const statusOrder = { open: 0, progress: 1, done: 2 };
+        return statusOrder[a.status] - statusOrder[b.status];
+      }
+      return priorityOrder[a.priority] - priorityOrder[b.priority];
+    });
+  } else if (sort === 'due') {
+    list.sort((a, b) => {
+      if (!a.due && !b.due) return 0;
+      if (!a.due) return 1;
+      if (!b.due) return -1;
+      return a.due.localeCompare(b.due);
+    });
+  } else if (sort === 'created') {
+    list.sort((a, b) => b.createdAt - a.createdAt);
+  }
+
+  if (list.length === 0) {
+    container.innerHTML = emptyState('◆', 'No issues here', 'Tap "New issue" to track something');
+    return;
+  }
+
+  const today = todayStr();
+  container.innerHTML = list.map(iss => {
+    const overdue = iss.due && iss.due < today && iss.status !== 'done';
+    const statusLabel = { open: 'Open', progress: 'In progress', done: 'Done' }[iss.status];
+    return `
+      <div class="card ${overdue ? 'overdue' : ''} ${iss.status === 'done' ? 'done' : ''}">
+        <div class="card-row">
+          <div style="flex:1; min-width:0; cursor:pointer;" onclick="openIssueModal('${iss.id}')">
+            <div class="card-title">${escapeHtml(iss.title)}</div>
+            ${iss.description ? `<div class="card-desc">${escapeHtml(truncate(iss.description, 160))}</div>` : ''}
+            <div class="card-meta">
+              <span class="tag p-${iss.priority}">${iss.priority}</span>
+              <span class="tag status-${iss.status}">${statusLabel}</span>
+              ${(iss.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+              ${iss.due ? `<span>${overdue ? 'Overdue: ' : 'Due '}${fmtDate(iss.due)}</span>` : ''}
+            </div>
+          </div>
+          <div class="card-actions">
+            <button class="icon-btn" title="Cycle status" onclick="cycleIssueStatus('${iss.id}')">↻</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderNotes() {
+  const container = document.getElementById('notesList');
+  const q = document.getElementById('noteSearch').value.trim().toLowerCase();
+
+  let list = [...DATA.notes];
+  if (q) {
+    list = list.filter(n =>
+      n.title.toLowerCase().includes(q) ||
+      (n.content || '').toLowerCase().includes(q) ||
+      (n.tags || []).some(t => t.toLowerCase().includes(q))
+    );
+  }
+  list.sort((a, b) => (b.pinned - a.pinned) || (b.updatedAt - a.updatedAt));
+
+  if (list.length === 0) {
+    container.innerHTML = emptyState('▤', q ? 'No matches' : 'No notes yet', q ? 'Try a different search' : 'Tap "New note" to start tracking a thread');
+    return;
+  }
+
+  container.innerHTML = list.map(note => `
+    <div class="card note-card" onclick="openNoteModal('${note.id}')">
+      <div class="card-title">${note.pinned ? '<span class="pin-star">★</span>' : ''}${escapeHtml(note.title)}</div>
+      ${note.content ? `<div class="card-desc">${escapeHtml(truncate(note.content, 200))}</div>` : ''}
+      ${(note.tags || []).length ? `<div class="card-meta">${note.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+    </div>`).join('');
+}
+
+/* ============================================================
+   NOTIFICATIONS / ALERTS
+============================================================ */
+function requestNotificationPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+function checkAlerts() {
+  const now = new Date();
+
+  DATA.events.forEach(ev => {
+    if (ev.notified || ev.alertMinutes < 0) return;
+    const dt = eventDateTime(ev);
+    const alertTime = new Date(dt.getTime() - ev.alertMinutes * 60000);
+    if (now >= alertTime && now <= dt) {
+      fireNotification('Appointment: ' + ev.title, ev.time ? `at ${fmtTime(ev.time)}` : 'today');
+      ev.notified = true;
+      saveData();
+    }
+  });
+
+  // Daily issue check — notify once per day about overdue issues
+  const today = todayStr();
+  const lastCheck = localStorage.getItem('logbook-last-issue-check');
+  if (lastCheck !== today) {
+    const overdue = DATA.issues.filter(i => i.status !== 'done' && i.due && i.due < today);
+    if (overdue.length > 0) {
+      fireNotification('Overdue issues', `${overdue.length} issue${overdue.length > 1 ? 's' : ''} past due date`);
+    }
+    localStorage.setItem('logbook-last-issue-check', today);
+  }
+}
+
+function fireNotification(title, body) {
+  if ('Notification' in window && Notification.permission === 'granted') {
+    try {
+      new Notification(title, { body });
+    } catch (e) { console.log(e); }
+  }
+  showToast(title + (body ? ' — ' + body : ''));
+}
+
+setInterval(checkAlerts, 30000);
+
+/* ============================================================
+   API KEY MANAGEMENT (local storage, device-only)
+============================================================ */
+function getApiKey() {
+  return localStorage.getItem(API_KEY_STORAGE) || '';
+}
+
+function saveApiKey() {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) {
+    showToast('Enter a key first');
+    return;
+  }
+  localStorage.setItem(API_KEY_STORAGE, key);
+  document.getElementById('apiKeyInput').value = '';
+  updateKeyStatus();
+  showToast('API key saved on this device');
+}
+
+function clearApiKey() {
+  localStorage.removeItem(API_KEY_STORAGE);
+  updateKeyStatus();
+  showToast('API key removed');
+}
+
+function updateKeyStatus() {
+  const has = !!getApiKey();
+  document.getElementById('keyDot').classList.toggle('ok', has);
+  document.getElementById('keyStatusText').textContent = has ? 'Key saved on this device' : 'No key saved';
+}
+
+/* ============================================================
+   CHAT / ASSISTANT
+============================================================ */
+function renderChat() {
+  const container = document.getElementById('chatMessages');
+  if (DATA.chatHistory.length === 0) {
+    container.innerHTML = `<div class="msg system">Ask about your schedule, issues, or notes — or tell the assistant to add, update, or remove items for you.</div>`;
+    return;
+  }
+  container.innerHTML = DATA.chatHistory.map(m => {
+    if (m.role === 'system') return `<div class="msg system">${escapeHtml(m.content)}</div>`;
+    return `<div class="msg ${m.role}">${escapeHtml(m.content)}</div>`;
+  }).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function handleChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
+  }
+}
+
+function buildDataSnapshot() {
+  const today = todayStr();
+  return JSON.stringify({
+    today: today,
+    now: new Date().toISOString(),
+    events: DATA.events.map(e => ({ id: e.id, title: e.title, date: e.date, time: e.time, notes: e.notes, alertMinutes: e.alertMinutes })),
+    issues: DATA.issues.map(i => ({ id: i.id, title: i.title, description: i.description, priority: i.priority, status: i.status, tags: i.tags, due: i.due })),
+    notes: DATA.notes.map(n => ({ id: n.id, title: n.title, content: n.content, tags: n.tags, pinned: n.pinned }))
+  });
+}
+
+const SYSTEM_PROMPT = `You are a personal assistant embedded in "Logbook", a personal organizer app with three data types:
+- events (appointments): {id, title, date (YYYY-MM-DD), time (HH:MM or empty), notes, alertMinutes}
+- issues (bug/task tracker): {id, title, description, priority (low/medium/high), status (open/progress/done), tags, due (YYYY-MM-DD or empty)}
+- notes (threads/info): {id, title, content, tags, pinned}
+
+You will be given the user's current data as JSON, and their message.
+
+Answer questions about their data naturally and concisely.
+
+If the user asks you to add, update, complete, or delete an item, respond conversationally AND include a JSON action block at the very end of your response, in this exact format, wrapped in triple backticks with "json-action" as the language tag:
+
+\`\`\`json-action
+{"actions": [{"type": "create_event"|"update_event"|"delete_event"|"create_issue"|"update_issue"|"delete_issue"|"create_note"|"update_note"|"delete_note", "id": "existing-id-if-updating-or-deleting", "data": { ...fields to set... }}]}
+\`\`\`
+
+Rules for actions:
+- For create actions, omit "id" — the app will generate one.
+- For update/delete actions, "id" must exactly match an existing item's id from the data you were given.
+- Only include fields being changed in "data" for updates.
+- If no action is needed, omit the json-action block entirely.
+- Dates must be YYYY-MM-DD format. If the user says "tomorrow" or "next Friday" etc, compute the actual date based on the "today" value given to you.
+- Keep your conversational reply natural — don't mention the JSON block or describe it; just say what you did, e.g. "Added that to your calendar for tomorrow at 3pm."
+- Be concise. This is a quick-glance assistant, not a long-form writer.`;
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    showToast('Add your API key in Settings first');
+    switchView('settings');
+    return;
+  }
+
+  DATA.chatHistory.push({ role: 'user', content: text });
+  input.value = '';
+  renderChat();
+  saveData();
+
+  const sendBtn = document.getElementById('chatSendBtn');
+  sendBtn.disabled = true;
+  const container = document.getElementById('chatMessages');
+  const typingEl = document.createElement('div');
+  typingEl.className = 'typing';
+  typingEl.textContent = 'thinking…';
+  container.appendChild(typingEl);
+  container.scrollTop = container.scrollHeight;
+
+  try {
+    const messages = DATA.chatHistory
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .map(m => ({ role: m.role, content: m.content }));
+
+    // Prepend data snapshot as part of the latest user message context
+    const apiMessages = messages.slice(0, -1).concat([{
+      role: 'user',
+      content: `Current data:\n${buildDataSnapshot()}\n\nUser message: ${text}`
+    }]);
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1024,
+        system: SYSTEM_PROMPT,
+        messages: apiMessages
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`API error ${response.status}: ${errText.slice(0, 200)}`);
+    }
+
+    const data = await response.json();
+    let replyText = data.content
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
+      .join('\n')
+      .trim();
+
+    // Extract and apply json-action block
+    const actionMatch = replyText.match(/```json-action\s*([\s\S]*?)```/);
+    if (actionMatch) {
+      try {
+        const actionData = JSON.parse(actionMatch[1].trim());
+        applyActions(actionData.actions || []);
+      } catch (e) {
+        console.error('Failed to parse action block', e);
+      }
+      replyText = replyText.replace(actionMatch[0], '').trim();
+    }
+
+    DATA.chatHistory.push({ role: 'assistant', content: replyText || '(done)' });
+  } catch (e) {
+    console.error(e);
+    DATA.chatHistory.push({ role: 'system', content: 'Error: ' + e.message });
+  } finally {
+    typingEl.remove();
+    sendBtn.disabled = false;
+    saveData();
+    renderChat();
+    renderAllViews();
+  }
+}
+
+function applyActions(actions) {
+  actions.forEach(action => {
+    switch (action.type) {
+      case 'create_event':
+        DATA.events.push({
+          id: uid(),
+          title: action.data.title || 'Untitled',
+          date: action.data.date || todayStr(),
+          time: action.data.time || '',
+          notes: action.data.notes || '',
+          alertMinutes: action.data.alertMinutes ?? 15,
+          notified: false,
+          createdAt: Date.now()
+        });
+        break;
+      case 'update_event': {
+        const ev = DATA.events.find(e => e.id === action.id);
+        if (ev) {
+          Object.assign(ev, action.data);
+          if (action.data.date || action.data.time) ev.notified = false;
+        }
+        break;
+      }
+      case 'delete_event':
+        DATA.events = DATA.events.filter(e => e.id !== action.id);
+        break;
+      case 'create_issue':
+        DATA.issues.push({
+          id: uid(),
+          title: action.data.title || 'Untitled',
+          description: action.data.description || '',
+          priority: action.data.priority || 'medium',
+          status: action.data.status || 'open',
+          tags: action.data.tags || [],
+          due: action.data.due || '',
+          createdAt: Date.now()
+        });
+        break;
+      case 'update_issue': {
+        const iss = DATA.issues.find(i => i.id === action.id);
+        if (iss) Object.assign(iss, action.data);
+        break;
+      }
+      case 'delete_issue':
+        DATA.issues = DATA.issues.filter(i => i.id !== action.id);
+        break;
+      case 'create_note':
+        DATA.notes.push({
+          id: uid(),
+          title: action.data.title || 'Untitled',
+          content: action.data.content || '',
+          tags: action.data.tags || [],
+          pinned: !!action.data.pinned,
+          createdAt: Date.now(),
+          updatedAt: Date.now()
+        });
+        break;
+      case 'update_note': {
+        const note = DATA.notes.find(n => n.id === action.id);
+        if (note) { Object.assign(note, action.data); note.updatedAt = Date.now(); }
+        break;
+      }
+      case 'delete_note':
+        DATA.notes = DATA.notes.filter(n => n.id !== action.id);
+        break;
+    }
+  });
+  saveData();
+}
+
+/* ============================================================
+   DATA EXPORT / WIPE
+============================================================ */
+function exportData() {
+  const blob = new Blob([JSON.stringify(DATA, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `logbook-export-${todayStr()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function confirmWipe() {
+  if (confirm('This will permanently delete all appointments, issues, and notes from your account. This cannot be undone. Continue?')) {
+    DATA = { events: [], issues: [], notes: [], chatHistory: [] };
+    saveData();
+    renderAllViews();
+    renderChat();
+    showToast('All data wiped');
+  }
+}
+
+/* ============================================================
+   INIT
+============================================================ */
+async function init() {
+  await loadData();
+  updateClock();
+  updateKeyStatus();
+  renderAllViews();
+  renderChat();
+  requestNotificationPermission();
+  registerServiceWorker();
+  document.getElementById('loadingScreen').style.display = 'none';
+  checkAlerts();
+}
+
+async function registerServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.register('./sw.js');
+      console.log('Logbook: service worker registered', reg);
+    } catch (e) {
+      console.error('Logbook: service worker registration failed', e);
+    }
+  }
+}
+
+init();
+</script>
+</body>
+</html>
