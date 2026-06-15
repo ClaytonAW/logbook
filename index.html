@@ -352,6 +352,47 @@
   .note-card { cursor: pointer; }
   .pin-star { color: var(--amber); margin-right: 6px; }
 
+  .checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .checklist-item input[type="checkbox"] { width: auto; flex-shrink: 0; }
+  .checklist-item input[type="text"] { flex: 1; }
+  .checklist-item .remove-item {
+    flex-shrink: 0;
+    width: 32px; height: 32px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0;
+  }
+
+  .note-checklist-preview {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .note-checklist-preview .ci {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .note-checklist-preview .ci.done { text-decoration: line-through; color: var(--text-faint); }
+  .note-checklist-preview .ci .box {
+    width: 14px; height: 14px;
+    border: 1px solid var(--border-light);
+    border-radius: 3px;
+    flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+  }
+  .note-checklist-preview .ci.done .box { background: var(--green); border-color: var(--green); color: #0a1410; }
+
+  .tag.todo-flag { color: var(--red); border-color: #5a2f29; background: rgba(217,108,95,0.08); }
+
   /* ===== Chat ===== */
   .chat-wrap {
     display: flex;
@@ -538,7 +579,7 @@
       <div>
         <div class="section-label">Up next</div>
         <div id="todayEvents"></div>
-        <div class="section-label">Due / overdue issues</div>
+        <div class="section-label">Due / overdue to-dos</div>
         <div id="todayIssues"></div>
       </div>
       <div>
@@ -565,11 +606,11 @@
     <div id="calendarList"></div>
   </section>
 
-  <!-- ISSUES -->
+  <!-- TO DO -->
   <section class="view" id="view-issues">
     <div class="view-header">
-      <div class="view-title">Issues</div>
-      <button class="primary" onclick="openIssueModal()">+ New issue</button>
+      <div class="view-title">To do</div>
+      <button class="primary" onclick="openIssueModal()">+ New to-do</button>
     </div>
     <div style="display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;">
       <select id="issueFilter" onchange="renderIssues()" style="width:auto;">
@@ -666,7 +707,7 @@
     <span class="nav-icon">▦</span><span>Calendar</span>
   </button>
   <button data-view="issues" onclick="switchView('issues')">
-    <span class="nav-icon">◆</span><span>Issues</span>
+    <span class="nav-icon">◆</span><span>To do</span>
   </button>
   <button data-view="notes" onclick="switchView('notes')">
     <span class="nav-icon">▤</span><span>Notes</span>
@@ -722,10 +763,10 @@
   </div>
 </div>
 
-<!-- Issue Modal -->
+<!-- To-do Modal -->
 <div class="modal-backdrop" id="issueModalBackdrop">
   <div class="modal">
-    <h3 id="issueModalTitle">New issue</h3>
+    <h3 id="issueModalTitle">New to-do</h3>
     <input type="hidden" id="issueId">
     <div class="field">
       <label>Title</label>
@@ -782,7 +823,12 @@
     </div>
     <div class="field">
       <label>Content</label>
-      <textarea id="noteContent" placeholder="Ongoing context, thread summary, links…" style="min-height:140px;"></textarea>
+      <textarea id="noteContent" placeholder="Ongoing context, thread summary, links…" style="min-height:100px;"></textarea>
+    </div>
+    <div class="field">
+      <label>Checklist</label>
+      <div id="noteItemsList"></div>
+      <button type="button" onclick="addNoteItemRow()" style="margin-top:6px;">+ Add item</button>
     </div>
     <div class="field">
       <label>Tags (comma separated)</label>
@@ -792,6 +838,40 @@
       <input type="checkbox" id="notePinned" style="width:auto;">
       <label style="margin:0;" for="notePinned">Pin to Today view</label>
     </div>
+
+    <div class="field" style="border-top:1px solid var(--border); padding-top:12px; margin-top:4px;">
+      <label>Alert (optional reminder for this note)</label>
+      <div class="field-row">
+        <div class="field">
+          <input type="date" id="noteAlertDate">
+        </div>
+        <div class="field">
+          <input type="time" id="noteAlertTime">
+        </div>
+      </div>
+    </div>
+
+    <div class="field" style="display:flex; align-items:center; gap:8px; flex-direction:row;">
+      <input type="checkbox" id="noteStaleTracking" style="width:auto;" onchange="toggleStaleFields()">
+      <label style="margin:0;" for="noteStaleTracking">Flag as a to-do if not completed</label>
+    </div>
+    <div class="field" id="noteStaleFields" style="display:none;">
+      <p class="hint" style="margin-top:0;">
+        If still incomplete 5 days after creation (or last marked active), this note will appear as a to-do item.
+        It will re-appear every 1-2 days after that until you mark it done or dormant.
+      </p>
+      <div class="field-row" style="margin-top:8px;">
+        <div class="field" style="display:flex; align-items:center; gap:8px; flex-direction:row;">
+          <input type="checkbox" id="noteCompleted" style="width:auto;">
+          <label style="margin:0;" for="noteCompleted">Mark as completed</label>
+        </div>
+        <div class="field" style="display:flex; align-items:center; gap:8px; flex-direction:row;">
+          <input type="checkbox" id="noteDormant" style="width:auto;">
+          <label style="margin:0;" for="noteDormant">Mark as dormant (no alerts)</label>
+        </div>
+      </div>
+    </div>
+
     <div class="modal-actions">
       <button id="noteDeleteBtn" class="danger" style="display:none" onclick="deleteNote()">Delete</button>
       <button onclick="closeModal('noteModalBackdrop')">Cancel</button>
@@ -1034,7 +1114,7 @@ function openIssueModal(issueId = null) {
   document.getElementById('issueTags').value = '';
   document.getElementById('issueDue').value = '';
   document.getElementById('issueDeleteBtn').style.display = 'none';
-  document.getElementById('issueModalTitle').textContent = 'New issue';
+  document.getElementById('issueModalTitle').textContent = 'New to-do';
 
   if (issueId) {
     const iss = DATA.issues.find(i => i.id === issueId);
@@ -1047,7 +1127,7 @@ function openIssueModal(issueId = null) {
       document.getElementById('issueTags').value = (iss.tags || []).join(', ');
       document.getElementById('issueDue').value = iss.due || '';
       document.getElementById('issueDeleteBtn').style.display = 'inline-block';
-      document.getElementById('issueModalTitle').textContent = 'Edit issue';
+      document.getElementById('issueModalTitle').textContent = 'Edit to-do';
     }
   }
   backdrop.classList.add('active');
@@ -1106,6 +1186,8 @@ function cycleIssueStatus(id) {
 }
 
 /* ----- Note modal ----- */
+let noteItemsState = [];
+
 function openNoteModal(noteId = null) {
   const backdrop = document.getElementById('noteModalBackdrop');
   document.getElementById('noteId').value = '';
@@ -1113,8 +1195,14 @@ function openNoteModal(noteId = null) {
   document.getElementById('noteContent').value = '';
   document.getElementById('noteTags').value = '';
   document.getElementById('notePinned').checked = false;
+  document.getElementById('noteAlertDate').value = '';
+  document.getElementById('noteAlertTime').value = '';
+  document.getElementById('noteStaleTracking').checked = false;
+  document.getElementById('noteCompleted').checked = false;
+  document.getElementById('noteDormant').checked = false;
   document.getElementById('noteDeleteBtn').style.display = 'none';
   document.getElementById('noteModalTitle').textContent = 'New note';
+  noteItemsState = [];
 
   if (noteId) {
     const note = DATA.notes.find(n => n.id === noteId);
@@ -1124,11 +1212,55 @@ function openNoteModal(noteId = null) {
       document.getElementById('noteContent').value = note.content || '';
       document.getElementById('noteTags').value = (note.tags || []).join(', ');
       document.getElementById('notePinned').checked = !!note.pinned;
+      document.getElementById('noteAlertDate').value = note.alertDate || '';
+      document.getElementById('noteAlertTime').value = note.alertTime || '';
+      document.getElementById('noteStaleTracking').checked = !!note.staleTracking;
+      document.getElementById('noteCompleted').checked = !!note.completed;
+      document.getElementById('noteDormant').checked = !!note.dormant;
       document.getElementById('noteDeleteBtn').style.display = 'inline-block';
       document.getElementById('noteModalTitle').textContent = 'Edit note';
+      noteItemsState = (note.items || []).map(i => ({ ...i }));
     }
   }
+  toggleStaleFields();
+  renderNoteItemRows();
   backdrop.classList.add('active');
+}
+
+function toggleStaleFields() {
+  const on = document.getElementById('noteStaleTracking').checked;
+  document.getElementById('noteStaleFields').style.display = on ? 'block' : 'none';
+}
+
+function renderNoteItemRows() {
+  const container = document.getElementById('noteItemsList');
+  container.innerHTML = noteItemsState.map((item, idx) => `
+    <div class="checklist-item">
+      <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleNoteItemDone(${idx})">
+      <input type="text" value="${escapeHtml(item.text)}" placeholder="Item text" oninput="updateNoteItemText(${idx}, this.value)">
+      <button type="button" class="icon-btn remove-item ghost" title="Remove" onclick="removeNoteItemRow(${idx})">×</button>
+    </div>
+  `).join('');
+}
+
+function addNoteItemRow() {
+  noteItemsState.push({ text: '', done: false });
+  renderNoteItemRows();
+  const inputs = document.querySelectorAll('#noteItemsList input[type="text"]');
+  if (inputs.length) inputs[inputs.length - 1].focus();
+}
+
+function updateNoteItemText(idx, value) {
+  noteItemsState[idx].text = value;
+}
+
+function toggleNoteItemDone(idx) {
+  noteItemsState[idx].done = !noteItemsState[idx].done;
+}
+
+function removeNoteItemRow(idx) {
+  noteItemsState.splice(idx, 1);
+  renderNoteItemRows();
 }
 
 function saveNote() {
@@ -1141,13 +1273,39 @@ function saveNote() {
   const tags = document.getElementById('noteTags').value
     .split(',').map(t => t.trim()).filter(Boolean);
 
+  const items = noteItemsState
+    .map(i => ({ text: (i.text || '').trim(), done: !!i.done }))
+    .filter(i => i.text);
+
+  const existing = id ? DATA.notes.find(n => n.id === id) : null;
+  const staleTracking = document.getElementById('noteStaleTracking').checked;
+  const completed = document.getElementById('noteCompleted').checked;
+  const dormant = document.getElementById('noteDormant').checked;
+
+  // Reset the staleness clock if the note transitions from completed/dormant
+  // back to active, or if it's newly enabling stale tracking.
+  let activeSince = existing?.activeSince || Date.now();
+  const wasInactive = existing ? (existing.completed || existing.dormant) : true;
+  if (staleTracking && wasInactive && !completed && !dormant) {
+    activeSince = Date.now();
+  }
+
   const note = {
     id: id || uid(),
     title,
     content: document.getElementById('noteContent').value.trim(),
+    items,
     tags,
     pinned: document.getElementById('notePinned').checked,
-    createdAt: id ? (DATA.notes.find(n => n.id === id)?.createdAt || Date.now()) : Date.now(),
+    alertDate: document.getElementById('noteAlertDate').value,
+    alertTime: document.getElementById('noteAlertTime').value,
+    alertNotified: existing?.alertNotified || false,
+    staleTracking,
+    completed,
+    dormant,
+    activeSince,
+    lastNudge: existing?.lastNudge || 0,
+    createdAt: existing?.createdAt || Date.now(),
     updatedAt: Date.now()
   };
 
@@ -1212,18 +1370,21 @@ function renderToday() {
     }).join('');
   }
 
-  // Issues due soon or overdue, not done
+  // To-dos due soon or overdue, not done
   const flagged = DATA.issues
     .filter(i => i.status !== 'done' && i.due)
     .filter(i => i.due <= addDays(today, 3))
     .sort((a, b) => a.due.localeCompare(b.due))
     .slice(0, 5);
 
+  // Notes flagged as needing attention
+  const flaggedNotes = DATA.notes.filter(isNoteFlagged);
+
   const issContainer = document.getElementById('todayIssues');
-  if (flagged.length === 0) {
-    issContainer.innerHTML = emptyState('◆', 'Nothing due soon', 'Issues with due dates within 3 days appear here');
+  if (flagged.length === 0 && flaggedNotes.length === 0) {
+    issContainer.innerHTML = emptyState('◆', 'Nothing due soon', 'To-dos with due dates within 3 days, and flagged notes, appear here');
   } else {
-    issContainer.innerHTML = flagged.map(iss => {
+    const issueCards = flagged.map(iss => {
       const overdue = iss.due < today;
       return `
         <div class="card ${overdue ? 'overdue' : 'soon'}" onclick="openIssueModal('${iss.id}')">
@@ -1234,6 +1395,15 @@ function renderToday() {
           </div>
         </div>`;
     }).join('');
+    const noteCards = flaggedNotes.map(note => `
+      <div class="card overdue" onclick="openNoteModal('${note.id}')">
+        <div class="card-title">${escapeHtml(note.title)}</div>
+        <div class="card-meta">
+          <span class="tag todo-flag">Needs attention</span>
+          <span>Note inactive 5+ days</span>
+        </div>
+      </div>`).join('');
+    issContainer.innerHTML = issueCards + noteCards;
   }
 
   // Pinned notes
@@ -1334,7 +1504,7 @@ function renderIssues() {
   }
 
   if (list.length === 0) {
-    container.innerHTML = emptyState('◆', 'No issues here', 'Tap "New issue" to track something');
+    container.innerHTML = emptyState('◆', 'No to-dos here', 'Tap "New to-do" to track something');
     return;
   }
 
@@ -1382,12 +1552,30 @@ function renderNotes() {
     return;
   }
 
-  container.innerHTML = list.map(note => `
+  container.innerHTML = list.map(note => {
+    const isFlagged = isNoteFlagged(note);
+    const items = note.items || [];
+    return `
     <div class="card note-card" onclick="openNoteModal('${note.id}')">
       <div class="card-title">${note.pinned ? '<span class="pin-star">★</span>' : ''}${escapeHtml(note.title)}</div>
       ${note.content ? `<div class="card-desc">${escapeHtml(truncate(note.content, 200))}</div>` : ''}
-      ${(note.tags || []).length ? `<div class="card-meta">${note.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
-    </div>`).join('');
+      ${items.length ? `<div class="note-checklist-preview">${items.map(i => `
+        <div class="ci ${i.done ? 'done' : ''}"><span class="box">${i.done ? '✓' : ''}</span>${escapeHtml(i.text)}</div>
+      `).join('')}</div>` : ''}
+      <div class="card-meta">
+        ${(note.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+        ${isFlagged ? `<span class="tag todo-flag">Needs attention</span>` : ''}
+        ${note.alertDate ? `<span>Alert ${fmtDate(note.alertDate)}${note.alertTime ? ' ' + fmtTime(note.alertTime) : ''}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function isNoteFlagged(note) {
+  if (!note.staleTracking || note.completed || note.dormant) return false;
+  const since = note.activeSince || note.createdAt;
+  const days = (Date.now() - since) / (1000 * 60 * 60 * 24);
+  return days >= 5;
 }
 
 /* ============================================================
@@ -1413,16 +1601,47 @@ function checkAlerts() {
     }
   });
 
-  // Daily issue check — notify once per day about overdue issues
+  // Daily issue check — notify once per day about overdue to-dos
   const today = todayStr();
   const lastCheck = localStorage.getItem('logbook-last-issue-check');
   if (lastCheck !== today) {
     const overdue = DATA.issues.filter(i => i.status !== 'done' && i.due && i.due < today);
     if (overdue.length > 0) {
-      fireNotification('Overdue issues', `${overdue.length} issue${overdue.length > 1 ? 's' : ''} past due date`);
+      fireNotification('Overdue to-dos', `${overdue.length} to-do${overdue.length > 1 ? 's' : ''} past due date`);
     }
     localStorage.setItem('logbook-last-issue-check', today);
   }
+
+  // Note alerts (one-time date/time reminders)
+  let changed = false;
+  DATA.notes.forEach(note => {
+    if (note.alertDate && !note.alertNotified) {
+      const dt = new Date(note.alertDate + 'T' + (note.alertTime || '00:00') + ':00');
+      if (now >= dt) {
+        fireNotification('Note reminder: ' + note.title, note.content ? truncate(note.content, 80) : '');
+        note.alertNotified = true;
+        changed = true;
+      }
+    }
+  });
+
+  // Staleness nudges: first nudge at 5 days inactive, then every 1-2 days
+  DATA.notes.forEach(note => {
+    if (!note.staleTracking || note.completed || note.dormant) return;
+    const since = note.activeSince || note.createdAt;
+    const daysInactive = (Date.now() - since) / (1000 * 60 * 60 * 24);
+    if (daysInactive < 5) return;
+    const lastNudge = note.lastNudge || 0;
+    const daysSinceNudge = (Date.now() - lastNudge) / (1000 * 60 * 60 * 24);
+    // First nudge at 5 days, then every ~1.5 days after
+    if (lastNudge === 0 || daysSinceNudge >= 1.5) {
+      fireNotification('Needs attention: ' + note.title, 'This note has been open for ' + Math.floor(daysInactive) + ' days');
+      note.lastNudge = Date.now();
+      changed = true;
+    }
+  });
+
+  if (changed) saveData();
 }
 
 function fireNotification(title, body) {
@@ -1497,18 +1716,18 @@ function buildDataSnapshot() {
     now: new Date().toISOString(),
     events: DATA.events.map(e => ({ id: e.id, title: e.title, date: e.date, time: e.time, notes: e.notes, alertMinutes: e.alertMinutes })),
     issues: DATA.issues.map(i => ({ id: i.id, title: i.title, description: i.description, priority: i.priority, status: i.status, tags: i.tags, due: i.due })),
-    notes: DATA.notes.map(n => ({ id: n.id, title: n.title, content: n.content, tags: n.tags, pinned: n.pinned }))
+    notes: DATA.notes.map(n => ({ id: n.id, title: n.title, content: n.content, items: n.items, tags: n.tags, pinned: n.pinned, alertDate: n.alertDate, alertTime: n.alertTime, staleTracking: n.staleTracking, completed: n.completed, dormant: n.dormant }))
   });
 }
 
 const SYSTEM_PROMPT = `You are a personal assistant embedded in "Logbook", a personal organizer app with three data types:
 - events (appointments): {id, title, date (YYYY-MM-DD), time (HH:MM or empty), notes, alertMinutes}
-- issues (bug/task tracker): {id, title, description, priority (low/medium/high), status (open/progress/done), tags, due (YYYY-MM-DD or empty)}
-- notes (threads/info): {id, title, content, tags, pinned}
+- issues (to-do/task tracker — call these "to-dos" when talking to the user): {id, title, description, priority (low/medium/high), status (open/progress/done), tags, due (YYYY-MM-DD or empty)}
+- notes (threads/info): {id, title, content, items (checklist: array of {text, done}), tags, pinned, alertDate (YYYY-MM-DD or empty), alertTime (HH:MM or empty), staleTracking (bool), completed (bool), dormant (bool)}
 
 You will be given the user's current data as JSON, and their message.
 
-Answer questions about their data naturally and concisely.
+Answer questions about their data naturally and concisely. Refer to "issues" as "to-dos" in conversation.
 
 If the user asks you to add, update, complete, or delete an item, respond conversationally AND include a JSON action block at the very end of your response, in this exact format, wrapped in triple backticks with "json-action" as the language tag:
 
@@ -1522,6 +1741,8 @@ Rules for actions:
 - Only include fields being changed in "data" for updates.
 - If no action is needed, omit the json-action block entirely.
 - Dates must be YYYY-MM-DD format. If the user says "tomorrow" or "next Friday" etc, compute the actual date based on the "today" value given to you.
+- When updating a note's checklist, send the full "items" array (the complete list, not just the changed item) since it replaces the existing array.
+- If the user wants a note tracked as a to-do that nudges them if left incomplete, set staleTracking: true on that note.
 - Keep your conversational reply natural — don't mention the JSON block or describe it; just say what you did, e.g. "Added that to your calendar for tomorrow at 3pm."
 - Be concise. This is a quick-glance assistant, not a long-form writer.`;
 
@@ -1666,8 +1887,17 @@ function applyActions(actions) {
           id: uid(),
           title: action.data.title || 'Untitled',
           content: action.data.content || '',
+          items: action.data.items || [],
           tags: action.data.tags || [],
           pinned: !!action.data.pinned,
+          alertDate: action.data.alertDate || '',
+          alertTime: action.data.alertTime || '',
+          alertNotified: false,
+          staleTracking: !!action.data.staleTracking,
+          completed: !!action.data.completed,
+          dormant: !!action.data.dormant,
+          activeSince: Date.now(),
+          lastNudge: 0,
           createdAt: Date.now(),
           updatedAt: Date.now()
         });
