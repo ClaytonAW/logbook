@@ -1,4 +1,4 @@
-const CACHE_NAME = 'logbook-v1';
+const CACHE_NAME = 'logbook-v2';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', (event) => {
@@ -17,10 +17,19 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Network-first for navigations and HTML/JS/JSON so updates show without a hard refresh.
+// Falls back to cache only if offline.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    fetch(event.request)
+      .then((response) => {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
 

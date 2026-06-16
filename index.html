@@ -2114,6 +2114,17 @@ async function registerServiceWorker() {
     try {
       const reg = await navigator.serviceWorker.register('./sw.js');
       console.log('Logbook: service worker registered', reg);
+
+      // Check for an updated service worker on load
+      reg.update();
+
+      // If a new SW takes control, reload once to pick up new assets
+      let refreshed = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (refreshed) return;
+        refreshed = true;
+        window.location.reload();
+      });
     } catch (e) {
       console.error('Logbook: service worker registration failed', e);
     }
