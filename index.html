@@ -535,17 +535,17 @@
     background: none;
     border: none;
     border-radius: 0;
-    padding: 11px 4px;
+    padding: 10px 2px;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 3px;
     color: var(--text-faint);
-    font-size: 11px;
+    font-size: 10px;
     font-family: var(--font-mono);
-    letter-spacing: 0.04em;
+    letter-spacing: 0.03em;
   }
-  nav button .nav-icon { font-size: 17px; }
+  nav button .nav-icon { font-size: 16px; }
   nav button.active { color: var(--amber); }
   nav button:hover { background: var(--bg-raised); }
   nav button.active:hover { background: none; }
@@ -773,6 +773,19 @@
     </div>
   </section>
 
+  <!-- ARCHIVE -->
+  <section class="view" id="view-archive">
+    <div class="view-header">
+      <div class="view-title">Archive</div>
+    </div>
+    <div class="section-label">Past appointments</div>
+    <div id="archiveEvents"></div>
+    <div class="section-label" style="margin-top:20px;">Completed to-dos</div>
+    <div id="archiveIssues"></div>
+    <div class="section-label" style="margin-top:20px;">Completed notes</div>
+    <div id="archiveNotes"></div>
+  </section>
+
 </main>
 
 <nav>
@@ -787,6 +800,9 @@
   </button>
   <button data-view="notes" onclick="switchView('notes')">
     <span class="nav-icon">▤</span><span>Notes</span>
+  </button>
+  <button data-view="archive" onclick="switchView('archive')">
+    <span class="nav-icon">◉</span><span>Archive</span>
   </button>
   <button data-view="chat" onclick="switchView('chat')">
     <span class="nav-icon">✦</span><span>Assistant</span>
@@ -1101,6 +1117,7 @@ function switchView(name) {
   if (name === 'calendar') renderCalendar();
   if (name === 'issues') renderIssues();
   if (name === 'notes') renderNotes();
+  if (name === 'archive') renderArchive();
   if (name === 'chat') renderChat();
 }
 
@@ -1491,6 +1508,7 @@ function renderAllViews() {
   if (active === 'calendar') renderCalendar();
   if (active === 'issues') renderIssues();
   if (active === 'notes') renderNotes();
+  if (active === 'archive') renderArchive();
 }
 
 function renderToday() {
@@ -1588,26 +1606,29 @@ function emptyState(icon, title, sub) {
 
 function renderCalendar() {
   const container = document.getElementById('calendarList');
-  if (DATA.events.length === 0) {
-    container.innerHTML = emptyState('▦', 'No appointments yet', 'Tap "New appointment" to add one');
+  const today = todayStr();
+
+  // Only show today and future events — past events live in Archive
+  const upcoming = DATA.events
+    .filter(ev => ev.date >= today)
+    .sort((a, b) => eventDateTime(a) - eventDateTime(b));
+
+  if (upcoming.length === 0) {
+    container.innerHTML = emptyState('▦', 'No upcoming appointments', 'Past appointments are in the Archive tab');
     return;
   }
 
-  const today = todayStr();
-  const sorted = [...DATA.events].sort((a, b) => eventDateTime(a) - eventDateTime(b));
-
   // Group by date
   const groups = {};
-  sorted.forEach(ev => {
+  upcoming.forEach(ev => {
     if (!groups[ev.date]) groups[ev.date] = [];
     groups[ev.date].push(ev);
   });
 
   container.innerHTML = Object.keys(groups).map(date => {
-    const isPast = date < today;
     const label = date === today ? 'Today — ' + fmtDate(date) : fmtDate(date);
     return `
-      <div class="day-group" style="${isPast ? 'opacity:0.55;' : ''}">
+      <div class="day-group">
         <div class="day-header">${label}</div>
         ${groups[date].map(ev => `
           <div class="card" onclick="openEventModal('${ev.id}')">
@@ -1730,6 +1751,89 @@ function isNoteFlagged(note) {
   const since = note.activeSince || note.createdAt;
   const days = (Date.now() - since) / (1000 * 60 * 60 * 24);
   return days >= 5;
+}
+
+function renderArchive() {
+  const today = todayStr();
+
+  // Past appointments — sorted most recent first
+  const pastEvents = DATA.events
+    .filter(ev => ev.date < today)
+    .sort((a, b) => eventDateTime(b) - eventDateTime(a));
+
+  const evContainer = document.getElementById('archiveEvents');
+  if (pastEvents.length === 0) {
+    evContainer.innerHTML = emptyState('▦', 'No past appointments', 'Completed appointments will appear here');
+  } else {
+    // Group by date, most recent first
+    const groups = {};
+    pastEvents.forEach(ev => {
+      if (!groups[ev.date]) groups[ev.date] = [];
+      groups[ev.date].push(ev);
+    });
+    evContainer.innerHTML = Object.keys(groups).map(date => `
+      <div class="day-group" style="opacity:0.7;">
+        <div class="day-header">${fmtDate(date)}</div>
+        ${groups[date].map(ev => `
+          <div class="card done" onclick="openEventModal('${ev.id}')">
+            <div class="card-title">${escapeHtml(ev.title)}</div>
+            <div class="card-meta">
+              ${ev.time ? `<span>${fmtTime(ev.time)}</span>` : '<span>All day</span>'}
+              ${ev.notes ? `<span>${escapeHtml(truncate(ev.notes, 60))}</span>` : ''}
+            </div>
+          </div>`).join('')}
+      </div>`).join('');
+  }
+
+  // Completed to-dos — sorted by createdAt most recent first (no completion timestamp, use createdAt as proxy)
+  const doneIssues = DATA.issues
+    .filter(i => i.status === 'done')
+    .sort((a, b) => b.createdAt - a.createdAt);
+
+  const issContainer = document.getElementById('archiveIssues');
+  if (doneIssues.length === 0) {
+    issContainer.innerHTML = emptyState('◆', 'No completed to-dos', 'Mark a to-do as done and it will appear here');
+  } else {
+    issContainer.innerHTML = doneIssues.map(iss => `
+      <div class="card done" onclick="openIssueModal('${iss.id}')">
+        <div class="card-title">${escapeHtml(iss.title)}</div>
+        ${iss.description ? `<div class="card-desc">${escapeHtml(truncate(iss.description, 120))}</div>` : ''}
+        <div class="card-meta">
+          <span class="tag status-done">Done</span>
+          <span class="tag p-${iss.priority}">${iss.priority}</span>
+          ${(iss.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+          ${iss.due ? `<span>Due was ${fmtDate(iss.due)}</span>` : ''}
+        </div>
+        ${renderLinkPreview(iss.links)}
+      </div>`).join('');
+  }
+
+  // Completed notes — sorted by updatedAt most recent first
+  const doneNotes = DATA.notes
+    .filter(n => n.completed)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+
+  const notesContainer = document.getElementById('archiveNotes');
+  if (doneNotes.length === 0) {
+    notesContainer.innerHTML = emptyState('▤', 'No completed notes', 'Mark a note as completed and it will appear here');
+  } else {
+    notesContainer.innerHTML = doneNotes.map(note => {
+      const items = note.items || [];
+      return `
+        <div class="card done" onclick="openNoteModal('${note.id}')">
+          <div class="card-title">${escapeHtml(note.title)}</div>
+          ${note.content ? `<div class="card-desc">${escapeHtml(truncate(note.content, 160))}</div>` : ''}
+          ${items.length ? `<div class="note-checklist-preview">${items.map(i => `
+            <div class="ci done"><span class="box">✓</span>${escapeHtml(i.text)}</div>
+          `).join('')}</div>` : ''}
+          ${renderLinkPreview(note.links)}
+          <div class="card-meta">
+            ${(note.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('')}
+            <span class="tag status-done">Completed</span>
+          </div>
+        </div>`;
+    }).join('');
+  }
 }
 
 /* ============================================================
